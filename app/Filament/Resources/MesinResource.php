@@ -36,6 +36,7 @@ class MesinResource extends Resource
                         'PLANT C' => 'PLANT C',
                         'PLANT D' => 'PLANT D',
                         'PLANT E' => 'PLANT E',
+                        'PLANT SS' => 'PLANT SS',
                     ]),
                 Forms\Components\TextInput::make('nama_mesin')
                     ->required()
