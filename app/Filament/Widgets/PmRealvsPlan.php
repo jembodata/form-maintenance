@@ -13,6 +13,7 @@ class PmRealvsPlan extends ChartWidget
     protected static ?int $sort = 3;
     protected int|string|array $columnSpan = 'full';
     protected static ?string $maxHeight = '300px';
+    protected static ?string $pollingInterval = '120s';
 
     protected function getData(): array
     {
