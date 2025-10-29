@@ -20,8 +20,8 @@ class PmRealvsPlan extends ChartWidget
         $year = now()->year;
 
         $realisasi = Checksheet::query()
-            ->selectRaw('MONTH(created_at) as month, COUNT(*) as total')
-            ->whereYear('created_at', $year)
+            ->selectRaw('MONTH(date) as month, COUNT(*) as total')
+            ->whereYear('date', $year)
             ->groupBy('month')
             ->pluck('total', 'month')
             ->all();
