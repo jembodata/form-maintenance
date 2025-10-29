@@ -44,7 +44,7 @@
                     const col = this.palette[idx];
                     const cls = this.classForPlant(p);
                     css += `.gantt_task_line.${cls}{background:${col} !important; border-color:${col} !important;}
-                                                                                        .gantt_task_line.${cls} .gantt_task_progress{background:rgba(255,255,255,.25) !important;}`;
+                                                                                                        .gantt_task_line.${cls} .gantt_task_progress{background:rgba(255,255,255,.25) !important;}`;
                 });
                 el.textContent = css;
                 document.head.appendChild(el);
@@ -334,17 +334,23 @@
             },
             exportPdfCloud() {},
         }" x-init="init()">
-            <div class="text-lg font-bold mb-2">Realisasi Preventive Mesin</div>
+            <div class="flex flex-col gap-3 pb-4 pt-0">
+                <div class="grid flex-1 gap-y-1">
+                    <div class="text-lg font-bold">Realisasi</div>
+                    <div class="text-sm text-gray-500 dark:text-gray-400">Preventive Maintenance(PM) Mesin per Plant
+                    </div>
+                </div>
+            </div>
 
-            <div class="mb-3">
+            <div class="gap-3 mb-2">
                 {{ $this->form }}
             </div>
 
-            <div class="flex flex-wrap items-center gap-3 mb-3">
+            <div class="flex flex-wrap items-center gap-3 mb-2">
                 <div class="flex gap-2">
                     <x-filament::button color="success" size="sm" icon="heroicon-m-arrow-down-tray"
                         x-on:click="exportPdfCloud()" type="button">
-                        Export PDF (Cloud)
+                        Export PDF
                     </x-filament::button>
                     <x-filament::button color="info" size="sm" icon="heroicon-m-magnifying-glass-plus"
                         x-on:click="zoomIn()" type="button">

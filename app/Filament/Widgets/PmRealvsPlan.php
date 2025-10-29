@@ -9,7 +9,8 @@ use Filament\Widgets\ChartWidget;
 
 class PmRealvsPlan extends ChartWidget
 {
-    protected static ?string $heading = 'Realisasi vs Rencana PM';
+    protected static ?string $heading = 'Preventive Mesin';
+    protected static ?string $description = 'Perbandingan Realisasi vs Rencana';
     protected static ?int $sort = 3;
     protected int|string|array $columnSpan = 'full';
     protected static ?string $maxHeight = '300px';

@@ -15,6 +15,7 @@ class ScheduleOverview extends Widget implements HasForms
     use InteractsWithForms;
 
     protected static string $view = 'filament.widgets.schedule-overview';
+    protected static ?string $description = 'Realisasi Preventive Maintenance Mesin per Plant';
     protected int|string|array $columnSpan = 'full';
 
     public ?string $plant = null;
