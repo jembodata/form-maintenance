@@ -35,17 +35,37 @@
             <script src="https://cdn.jsdelivr.net/npm/dhtmlx-gantt@9.0.15/codebase/dhtmlxgantt.min.js"></script>
 
             <style>
+                :root {
+                    /* scales */
+                    --dhx-gantt-scale-background: #8E8E8E;
+                    --dhx-gantt-base-colors-border-light: #C5C5C5;
+                    --dhx-gantt-base-colors-border: #DFE0E1;
+                    --dhx-gantt-scale-color: #FFF;
+                    --dhx-gantt-base-colors-icons: #00000099;
+
+                    /* tasks */
+                    --dhx-gantt-task-background: #3db9d3;
+                    --dhx-gantt-task-color: #FFFFFF;
+                    /* --dhx-gantt-project-background: #6AA84F;
+                    --dhx-gantt-project-color: #FFFFFF; */
+
+                    /* links */
+                    --dhx-gantt-link-background: #ffa011;
+                    --dhx-gantt-link-background-hover: #ffa011;
+
+                }
+
                 #gantt_here {
                     height: 79vh;
                     min-height: 520px;
                 }
 
-                .gantt_grid_scale .gantt_grid_head_cell,
+                /* .gantt_grid_scale .gantt_grid_head_cell,
                 .gantt_task .gantt_task_scale .gantt_scale_cell {
                     font-weight: 600;
                     font-size: 14px;
                     color: rgba(0, 0, 0, .75);
-                }
+                } */
 
                 /* Warna per-plant */
                 .plant-a .gantt_task_content {
@@ -80,13 +100,13 @@
                 }
 
                 .gantt_resource_marker_ok {
-                    background: rgba(31, 251, 111, .745);
-                    border: 1px solid rgba(32, 237, 107, .5);
+                    background: rgba(31, 158, 78, 0.745);
+                    /* border: 1px solid rgba(21, 110, 54, 0.5); */
                 }
 
                 .gantt_resource_marker_overtime {
-                    background: rgba(255, 7, 7, .758);
-                    border: 1px solid rgba(239, 68, 68, .5);
+                    background: rgba(190, 9, 9, 0.758);
+                    /* border: 1px solid rgba(239, 68, 68, .5); */
                 }
 
                 /* Hide progress UI */
@@ -595,7 +615,7 @@
                                     {
                                         unit: "day",
                                         step: 1,
-                                        format: "%j %D"
+                                        format: "%d"
                                     }
                                 ];
                                 gantt.config.min_column_width = 40;
@@ -666,8 +686,8 @@
                         //     })
                         // },
 
-                        // ==== Export ala demo: switch ke no-resource, export, lalu restore ====
                         exportPDF() {
+
                             const prevShown = this._resourcePanelShown;
                             const prevLayout = this._resourcePanelShown ? this._resourceLayout : this._noResourceLayout;
 
@@ -679,15 +699,18 @@
                             this.resourcesStore.parse(this.payload.resources || []);
                             this.resourcesStore.refresh();
 
-                            // 2) Export
                             gantt.exportToPDF({
+                                name: "mygantt.pdf",
+                                skin: "broadway",
+                                header: "<h1>Header Sample</h1>",
+                                footer: "<h4>Footer Sample</h4>",
+                                locale: "en",
                                 raw: false,
-                                name: "schedule-resource.pdf",
                                 header: @js("
                                     <div style='width:100%; border:1px solid black; border-collapse:collapse; font-family:Arial, sans-serif; font-size:14px;'>
                                         <div style='display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid black; padding:4px 8px;'>
                                             <span style='font-style:italic; font-weight:bold;'>PT JEMBO CABLE COMPANY Tbk.</span>
-                                            <span style='font-weight:bold;'>PAGE : 1/2</span>
+                                            <span style='font-weight:bold;'>Page: 1/1</span>
                                         </div>
 
                                         <div style='text-align:center; padding:16px 0;'>
@@ -703,8 +726,8 @@
                                         <!-- Top row: Copy (left) and Date/Place (right) -->
                                         <div style='display:flex; justify-content:space-between; align-items:flex-start; padding:6px 10px; border-bottom:1px solid #ccc;'>
                                             <div>
-                                            <span style='font-style:italic;'>Copy</span>
-                                            <span> : P1M, P2M, PIM, FILE.</span>
+                                            <span style='font-style:italic;'>CC</span>
+                                            <span> : APL, BPL, CPL, DPL, SS & File.</span>
                                             </div>
                                             <div style='font-style:italic;'>Tangerang, {$this->exportDate}</div>
                                         </div>
@@ -727,37 +750,99 @@
                                         </div>
                                     </div>
                                 "),
-                                additional_settings: {
-                                    format: "A4",
-                                    landscape: true,
-                                    margins: {
-                                        top: 5,
-                                        bottom: 10,
-                                        left: 10,
-                                        right: 10
-                                    },
-                                }
                             });
-
-                            // 3) Restore layout sebelumnya
-                            this._resourcePanelShown = prevShown;
-                            gantt.config.layout = prevLayout;
-                            gantt.init("gantt_here");
-                            this.resourcesStore.clearAll();
-                            this.resourcesStore.parse(this.payload.resources || []);
-                            this.resourcesStore.refresh();
-
-                            // 4) Re-parse supaya tampilan balik utuh
-                            gantt.clearAll();
-                            gantt.parse({
-                                data: this._filtered(this.payload.data || []),
-                                links: this.payload.links || []
-                            });
-                            this.resourcesStore.refresh();
-                            gantt.render();
                         },
 
+                        // ==== Export ala demo: switch ke no-resource, export, lalu restore ====
+                        // exportPDF() {
+                        //     const prevShown = this._resourcePanelShown;
+                        //     const prevLayout = this._resourcePanelShown ? this._resourceLayout : this._noResourceLayout;
 
+                        //     // 1) switch layout -> no resource
+                        //     this._resourcePanelShown = false;
+                        //     gantt.config.layout = this._noResourceLayout;
+                        //     gantt.init("gantt_here");
+                        //     this.resourcesStore.clearAll();
+                        //     this.resourcesStore.parse(this.payload.resources || []);
+                        //     this.resourcesStore.refresh();
+
+                        //     // 2) Export
+                        //     gantt.exportToPDF({
+                        //         raw: false,
+                        //         name: "schedule-resource.pdf",
+                        //         header: @js("
+                        //             <div style='width:100%; border:1px solid black; border-collapse:collapse; font-family:Arial, sans-serif; font-size:14px;'>
+                        //                 <div style='display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid black; padding:4px 8px;'>
+                        //                     <span style='font-style:italic; font-weight:bold;'>PT JEMBO CABLE COMPANY Tbk.</span>
+                        //                     <span style='font-weight:bold;'>PAGE : 1</span>
+                        //                 </div>
+
+                        //                 <div style='text-align:center; padding:16px 0;'>
+                        //                     <div style='font-weight:bold; font-style:italic;'>MONTHLY PREVENTIVE MAINTENANCE SCHEDULE</div>
+                        //                     <div style='font-weight:bold; font-style:italic;'>PRODUCTION MACHINE</div>
+                        //                 </div>
+
+                        //                 <div style='border-top:1px solid black;'></div>
+                        //             </div>
+                        //             "),
+                        //         footer: @js("
+                        //             <div style='width:100%; border:1px solid black; font-family:Arial, sans-serif; font-size:14px;'>
+                        //                 <!-- Top row: Copy (left) and Date/Place (right) -->
+                        //                 <div style='display:flex; justify-content:space-between; align-items:flex-start; padding:6px 10px; border-bottom:1px solid #ccc;'>
+                        //                     <div>
+                        //                     <span style='font-style:italic;'>CC</span>
+                        //                     <span> : APL, BPL, CPL, DPL, SS & File.</span>
+                        //                     </div>
+                        //                     <div style='font-style:italic;'>Tangerang, {$this->exportDate}</div>
+                        //                 </div>
+
+                        //                 <!-- Bottom signatures -->
+                        //                 <div style='display:flex; justify-content:space-between; padding:16px 24px 24px 24px;'>
+                        //                     <!-- Left sign -->
+                        //                     <div style='text-align:center; width:40%;'>
+                        //                     <div style='height:40px;'></div>
+                        //                     <div style='font-weight:bold; text-decoration:underline;'>SOFYAN</div>
+                        //                     <div style='margin-top:2px;'>MTM</div>
+                        //                     </div>
+
+                        //                     <!-- Right sign -->
+                        //                     <div style='text-align:center; width:40%;'>
+                        //                     <div style='height:40px;'></div>
+                        //                     <div style='font-weight:bold; text-decoration:underline;'>BAMBANG PP</div>
+                        //                     <div style='margin-top:2px;'>MN</div>
+                        //                     </div>
+                        //                 </div>
+                        //             </div>
+                        //         "),
+                        //         additional_settings: {
+                        //             // format: "A4",
+                        //             // landscape: true,
+                        //             margins: {
+                        //                 top: 5,
+                        //                 bottom: 10,
+                        //                 left: 10,
+                        //                 right: 10
+                        //             },
+                        //         }
+                        //     });
+
+                        //     // 3) Restore layout sebelumnya
+                        //     this._resourcePanelShown = prevShown;
+                        //     gantt.config.layout = prevLayout;
+                        //     gantt.init("gantt_here");
+                        //     this.resourcesStore.clearAll();
+                        //     this.resourcesStore.parse(this.payload.resources || []);
+                        //     this.resourcesStore.refresh();
+
+                        //     // 4) Re-parse supaya tampilan balik utuh
+                        //     gantt.clearAll();
+                        //     gantt.parse({
+                        //         data: this._filtered(this.payload.data || []),
+                        //         links: this.payload.links || []
+                        //     });
+                        //     this.resourcesStore.refresh();
+                        //     gantt.render();
+                        // },
                     }
                 };
             </script>

@@ -91,7 +91,8 @@ class ScheduleOverview extends Widget implements HasForms
         $query = Checksheet::query()
             ->when(filled($plant), fn($q) => $q->where('plant_area', $plant))
             ->when($start && $end, fn($q) => $q->whereBetween('date', [$start->toDateString(), $end->toDateString()]))
-            ->orderBy('date')          // urut tetap by date
+            ->orderBy('plant_area')
+            ->orderBy('date')
             ->orderBy('nama_mesin')
             ->select(['id', 'plant_area', 'nama_mesin', 'date']);
 

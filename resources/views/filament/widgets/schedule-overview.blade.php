@@ -3,9 +3,30 @@
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dhtmlx-gantt@9.0.15/codebase/dhtmlxgantt.min.css">
 
         <style>
-            /* weekend shading */
-            .weekend {
-                background: var(--dhx-gantt-base-colors-background-alt);
+            /* Weekend shading */
+            .gantt_task_cell.weekend,
+            .gantt_scale_cell.weekend {
+                background: #f0f0f0;
+            }
+
+            :root {
+                /* scales */
+                --dhx-gantt-scale-background: #8E8E8E;
+                --dhx-gantt-base-colors-border-light: #C5C5C5;
+                --dhx-gantt-base-colors-border: #DFE0E1;
+                --dhx-gantt-scale-color: #FFF;
+                --dhx-gantt-base-colors-icons: #00000099;
+
+                /* tasks */
+                --dhx-gantt-task-background: #3db9d3;
+                --dhx-gantt-task-color: #FFFFFF;
+                --dhx-gantt-project-background: #6AA84F;
+                --dhx-gantt-project-color: #FFFFFF;
+
+                /* links */
+                --dhx-gantt-link-background: #ffa011;
+                --dhx-gantt-link-background-hover: #ffa011;
+
             }
         </style>
 
@@ -33,7 +54,7 @@
         
             // simple hash → index palette
             _hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return Math.abs(h); },
-            palette: ['#4f46e5', '#059669', '#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#a16207'],
+            palette: ['#FFBE0B', '#FB5607', '#FF006E', '#8338EC', '#3A86FF'],
         
             // inject CSS warna bar per plant
             injectPlantColors(plants) {
@@ -44,7 +65,7 @@
                     const col = this.palette[idx];
                     const cls = this.classForPlant(p);
                     css += `.gantt_task_line.${cls}{background:${col} !important; border-color:${col} !important;}
-                                                                                                        .gantt_task_line.${cls} .gantt_task_progress{background:rgba(255,255,255,.25) !important;}`;
+                                                                                                                        .gantt_task_line.${cls} .gantt_task_progress{background:rgba(255,255,255,.25) !important;}`;
                 });
                 el.textContent = css;
                 document.head.appendChild(el);
@@ -224,9 +245,7 @@
                 const zoomConfig = {
                     levels: [{
                             name: 'day',
-                            scale_height: 27,
-                            min_column_width: 80,
-                            scales: [{ unit: 'day', step: 1, format: '%d %M' }],
+                            scales: [{unit: 'month', step: 1, format: '%F %Y'}, { unit: 'day', step: 1, format: '%d' }],
                         },
                         {
                             name: 'week',
@@ -242,13 +261,11 @@
                                         return '#' + w + ', ' + toStr(date) + ' - ' + toStr(end);
                                     }
                                 },
-                                { unit: 'day', step: 1, format: '%j %D' },
+                                { unit: 'day', step: 1, format: '%d' },
                             ],
                         },
                         {
                             name: 'month',
-                            scale_height: 50,
-                            min_column_width: 120,
                             scales: [{ unit: 'month', format: '%F, %Y' }, { unit: 'week', format: 'Week #%W' }],
                         },
                         {
@@ -352,36 +369,36 @@
                         x-on:click="exportPdfCloud()" type="button">
                         Export PDF
                     </x-filament::button>
-                    <x-filament::button color="info" size="sm" icon="heroicon-m-magnifying-glass-plus"
+                    {{-- <x-filament::button color="info" size="sm" icon="heroicon-m-magnifying-glass-plus"
                         x-on:click="zoomIn()" type="button">
                         Zoom In
                     </x-filament::button>
                     <x-filament::button color="info" size="sm" icon="heroicon-m-magnifying-glass-minus"
                         x-on:click="zoomOut()" type="button">
                         Zoom Out
-                    </x-filament::button>
+                    </x-filament::button> --}}
                 </div>
                 <div class="flex items-center gap-3">
                     <label class="inline-flex items-center gap-1 cursor-pointer">
                         <input type="radio" name="scale" value="day" @change="setScale('day')"
                             :checked="currentScale === 'day'"> Day
                     </label>
-                    <label class="inline-flex items-center gap-1 cursor-pointer">
+                    {{-- <label class="inline-flex items-center gap-1 cursor-pointer">
                         <input type="radio" name="scale" value="week" @change="setScale('week')"
                             :checked="currentScale === 'week'"> Week
-                    </label>
+                    </label> --}}
                     <label class="inline-flex items-center gap-1 cursor-pointer">
                         <input type="radio" name="scale" value="month" @change="setScale('month')"
                             :checked="currentScale === 'month'"> Month
                     </label>
-                    <label class="inline-flex items-center gap-1 cursor-pointer">
+                    {{-- <label class="inline-flex items-center gap-1 cursor-pointer">
                         <input type="radio" name="scale" value="quarter" @change="setScale('quarter')"
                             :checked="currentScale === 'quarter'"> Quarter
-                    </label>
-                    <label class="inline-flex items-center gap-1 cursor-pointer">
+                    </label> --}}
+                    {{-- <label class="inline-flex items-center gap-1 cursor-pointer">
                         <input type="radio" name="scale" value="year" @change="setScale('year')"
                             :checked="currentScale === 'year'"> Year
-                    </label>
+                    </label> --}}
                 </div>
             </div>
 
