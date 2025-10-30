@@ -11,10 +11,10 @@ class Dashboard extends \Filament\Pages\Dashboard
 {
     use HasFiltersForm;
 
-    public function getColumns(): int | string | array
-    {
-        return 2;
-    }
+    // public function getColumns(): int | string | array
+    // {
+    //     return 2;
+    // }
 
     // public function filtersForm(Form $form): Form
     // {
