@@ -700,7 +700,7 @@
                             this.resourcesStore.refresh();
 
                             gantt.exportToPDF({
-                                name: "mygantt.pdf",
+                                name: "schedule-resource-<?php echo $this->exportDate; ?>.pdf",
                                 skin: "broadway",
                                 header: "<h1>Header Sample</h1>",
                                 footer: "<h4>Footer Sample</h4>",
@@ -735,15 +735,15 @@
                                         <!-- Bottom signatures -->
                                         <div style='display:flex; justify-content:space-between; padding:16px 24px 24px 24px;'>
                                             <!-- Left sign -->
-                                            <div style='text-align:center; width:40%;'>
-                                            <div style='height:40px;'></div>
+                                            <div style='text-align:center; width:40%'>
+                                            <div style='height:150px;'></div>
                                             <div style='font-weight:bold; text-decoration:underline;'>SOFYAN</div>
                                             <div style='margin-top:2px;'>MTM</div>
                                             </div>
 
                                             <!-- Right sign -->
-                                            <div style='text-align:center; width:40%;'>
-                                            <div style='height:40px;'></div>
+                                            <div style='text-align:center; width:40%'>
+                                            <div style='height:150px;'></div>
                                             <div style='font-weight:bold; text-decoration:underline;'>BAMBANG PP</div>
                                             <div style='margin-top:2px;'>MN</div>
                                             </div>
