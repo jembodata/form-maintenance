@@ -393,13 +393,20 @@ class Schedule extends Page implements HasForms
                             Forms\Components\Select::make('nama_plant')
                                 ->label('Nama Plant')
                                 ->native(false)
-                                ->options([
-                                    'PLANT A' => 'PLANT A',
-                                    'PLANT B' => 'PLANT B',
-                                    'PLANT C' => 'PLANT C',
-                                    'PLANT D' => 'PLANT D',
-                                    'PLANT E' => 'PLANT E',
-                                ])
+                                // ->options([
+                                //     'PLANT A' => 'PLANT A',
+                                //     'PLANT B' => 'PLANT B',
+                                //     'PLANT C' => 'PLANT C',
+                                //     'PLANT D' => 'PLANT D',
+                                //     'PLANT E' => 'PLANT E',
+                                //     'PLANT SS' => 'PLANT SS',
+                                // ])
+                                ->options(function () {
+                                    return Mesin::query()
+                                        ->distinct()
+                                        ->orderBy('nama_plant')
+                                        ->pluck('nama_plant', 'nama_plant');
+                                })
                                 ->live()
                                 ->required(),
 
@@ -419,9 +426,9 @@ class Schedule extends Page implements HasForms
                                     }
 
                                     return Mesin::query()
-                                        ->where('nama_plant', $plant)       // sesuaikan jika kolom berbeda
-                                        ->orderBy('nama_mesin')             // ganti ke 'nama' jika nama kolomnya 'nama'
-                                        ->pluck('nama_mesin', 'id')         // tampilkan nama, simpan id
+                                        ->where('nama_plant', $plant)
+                                        ->orderBy('nama_mesin')
+                                        ->pluck('nama_mesin', 'id') //simpan id
                                         ->toArray();
                                 }),
 

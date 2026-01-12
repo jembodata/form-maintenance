@@ -5,6 +5,9 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\ChecksheetResource\Pages;
 // use App\Filament\Resources\ChecksheetResource\RelationManagers;
 use App\Models\Checksheet;
+use App\Models\Mesin;
+use Filament\Forms\Get;
+use Filament\Forms\Set;
 // use Barryvdh\DomPDF\Facade\Pdf;
 use BezhanSalleh\FilamentShield\Contracts\HasShieldPermissions;
 use Filament\Actions\Action;
@@ -58,14 +61,24 @@ class ChecksheetResource extends Resource implements HasShieldPermissions
                                     ->label('Nama Plant')
                                     ->native(false)
                                     ->required()
-                                    ->options([
-                                        'PLANT A' => 'PLANT A',
-                                        'PLANT B' => 'PLANT B',
-                                        'PLANT C' => 'PLANT C',
-                                        'PLANT D' => 'PLANT D',
-                                        'PLANT E' => 'PLANT E',
-                                    ])
-                                    ->default('PLANT A'),
+                                    ->options(function () {
+                                        return Mesin::query()
+                                            ->distinct()
+                                            ->orderBy('nama_plant')
+                                            ->pluck('nama_plant', 'nama_plant');
+                                    })
+                                    // ->options([
+                                    //     'PLANT A' => 'PLANT A',
+                                    //     'PLANT B' => 'PLANT B',
+                                    //     'PLANT C' => 'PLANT C',
+                                    //     'PLANT D' => 'PLANT D',
+                                    //     'PLANT E' => 'PLANT E',
+                                    //     'PLANT SS' => 'PLANT SS',
+                                    // ])
+                                    ->live()
+                                    ->afterStateUpdated(function (Set $set) {
+                                        $set('nama_mesin', null);
+                                    }),
                                 Forms\Components\TextInput::make('nama_operator')
                                     ->required()
                                     ->label('Nama')
@@ -116,15 +129,33 @@ class ChecksheetResource extends Resource implements HasShieldPermissions
                                     ->prefix('CheckSheet')
                                     ->native(false)
                                     ->reactive(),
-                                Forms\Components\TextInput::make('nama_mesin')
-                                    ->label("Nama mesin")
+                                // Forms\Components\TextInput::make('nama_mesin')
+                                //     ->label("Nama mesin")
+                                //     ->required()
+                                //     ->datalist(
+                                //         DB::table('checksheets')
+                                //             ->distinct()
+                                //             ->pluck('nama_mesin')
+                                //             ->toArray()
+                                //     ),
+                                Forms\Components\Select::make('nama_mesin')
+                                    ->label("Nama Mesin")
                                     ->required()
-                                    ->datalist(
-                                        DB::table('checksheets')
-                                            ->distinct()
-                                            ->pluck('nama_mesin')
-                                            ->toArray()
-                                    ),
+                                    ->disabled(fn(Get $get) => blank($get('plant_area')))
+                                    ->helperText(fn(Get $get) => blank($get('plant_area')) ? 'Select the plant first' : null)
+                                    ->searchable()
+                                    ->preload()
+                                    ->options(function (Get $get) {
+                                        $plant = $get('plant_area');
+
+                                        if (! $plant) {
+                                            return [];
+                                        }
+
+                                        return Mesin::where('nama_plant', $plant)
+                                            ->orderBy('nama_mesin', 'asc')
+                                            ->pluck('nama_mesin', 'nama_mesin'); //simpan nama(string)
+                                    }),
                                 Forms\Components\TextInput::make('hours_meter')
                                     ->label("Hours Meter")
                                     ->numeric()
