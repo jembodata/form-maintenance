@@ -36,15 +36,53 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
+            ->discoverClusters(
+                in: app_path('Filament/Clusters'),
+                for: 'App\\Filament\\Clusters'
+            )
             ->pages([])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 // Widgets\AccountWidget::class,
                 // Widgets\FilamentInfoWidget::class,
             ])
+            ->userMenuItems([
+                \Filament\Navigation\MenuItem::make()
+                    ->label('Shield')
+                    ->icon('heroicon-o-shield-check')
+                    ->url(function (): string {
+                        $user = \Filament\Facades\Filament::auth()->user();
+
+                        if ($user?->can('view_any_role')) {
+                            return \App\Filament\Resources\RoleResource::getUrl('index');
+                        }
+
+                        return \App\Filament\Resources\UserResource::getUrl('index');
+                    })
+                    ->visible(function (): bool {
+                        $user = \Filament\Facades\Filament::auth()->user();
+
+                        return $user !== null
+                            && (
+                                $user->can('view_any_role')
+                                || $user->can('view_any_user')
+                            );
+                    }),
+            ])
             ->plugins([
                 \BezhanSalleh\FilamentShield\FilamentShieldPlugin::make(),
                 ThemesPlugin::make()
+                    ->canViewThemesPage(function (): bool {
+                        $user = \Filament\Facades\Filament::auth()->user();
+
+                        if (! $user) {
+                            return false;
+                        }
+
+                        return $user->hasRole('super_admin')
+                            || $user->can('page_Themes');
+                    }),
+                // ThemesPlugin::make()
                 //     ->registerTheme([
                 //         \Hasnayeen\Themes\Themes\Nord::class,
                 //     ],
@@ -52,7 +90,6 @@ class AdminPanelProvider extends PanelProvider
                 // ),
             ])
             ->middleware([
-                \Hasnayeen\Themes\Http\Middleware\SetTheme::class,
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
                 StartSession::class,
@@ -62,6 +99,7 @@ class AdminPanelProvider extends PanelProvider
                 SubstituteBindings::class,
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
+                \Hasnayeen\Themes\Http\Middleware\SetTheme::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

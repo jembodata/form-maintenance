@@ -9,10 +9,12 @@ use Filament\Forms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
 use Filament\Widgets\Widget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class ScheduleOverview extends Widget implements HasForms
 {
     use InteractsWithForms;
+    use HasWidgetShield;
 
     protected static string $view = 'filament.widgets.schedule-overview';
     protected static ?string $description = 'Realisasi Preventive Maintenance Mesin per Plant';
@@ -21,6 +23,11 @@ class ScheduleOverview extends Widget implements HasForms
     public ?string $plant = null;
     public ?string $date_start = null; // disimpan sebagai string "d/m/Y"
     public ?string $date_end   = null; // disimpan sebagai string "d/m/Y"
+
+    public static function canView(): bool
+    {
+        return false;
+    }
 
     public function mount(): void
     {

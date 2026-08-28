@@ -11,6 +11,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Tables\Enums\FiltersLayout;
+use Filament\Tables\Filters\SelectFilter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
@@ -28,16 +30,29 @@ class MesinResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('nama_plant')
+                // Forms\Components\Select::make('nama_plant')
+                //     ->required()
+                //     ->options([
+                //         'PLANT A' => 'PLANT A',
+                //         'PLANT B' => 'PLANT B',
+                //         'PLANT C' => 'PLANT C',
+                //         'PLANT D' => 'PLANT D',
+                //         'PLANT E' => 'PLANT E',
+                //         'PLANT SS' => 'PLANT SS',
+                //     ]),
+                Forms\Components\TextInput::make('nama_plant')
+                    ->label('Nama Plant')
                     ->required()
-                    ->options([
-                        'PLANT A' => 'PLANT A',
-                        'PLANT B' => 'PLANT B',
-                        'PLANT C' => 'PLANT C',
-                        'PLANT D' => 'PLANT D',
-                        'PLANT E' => 'PLANT E',
-                        'PLANT SS' => 'PLANT SS',
-                    ]),
+                    ->extraInputAttributes(['style' => 'text-transform: uppercase'])
+                    ->dehydrateStateUsing(fn(?string $state) => $state ? strtoupper($state) : null)
+                    ->maxLength(20)
+                    ->datalist(
+                        Mesin::query()
+                            ->distinct() //(biar tidak duplikat)
+                            ->pluck('nama_plant')
+                            ->toArray()
+                    )
+                    ->placeholder('Pilih Plant atau ketik baru...'),
                 Forms\Components\TextInput::make('nama_mesin')
                     ->required()
                     ->maxLength(20),
@@ -47,6 +62,7 @@ class MesinResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->defaultSort('id', 'desc')
             ->columns([
                 Tables\Columns\TextColumn::make('nama_plant')
                     ->searchable(),
@@ -61,8 +77,18 @@ class MesinResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->filters([
-                //
+                SelectFilter::make('nama_plant')
+                    ->label('Filter Plant')
+                    ->searchable()
+                    ->options(
+                        fn() => Mesin::query()
+                            ->distinct()
+                            ->orderBy('nama_plant')
+                            ->pluck('nama_plant', 'nama_plant')
+                            ->toArray()
+                    ),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

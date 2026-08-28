@@ -5,6 +5,7 @@ namespace App\Filament\Resources\ChecksheetResource\Pages;
 use App\Filament\Resources\ChecksheetResource;
 use App\Models\Checksheet;
 use Filament\Actions;
+use Filament\Forms\Form;
 use Filament\Support\Enums\MaxWidth;
 use Filament\Resources\Components\Tab;
 use Filament\Resources\Pages\ListRecords;
@@ -20,6 +21,15 @@ class ListChecksheets extends ListRecords
             Actions\CreateAction::make()
                 ->icon('heroicon-m-plus')
                 ->label('Create PM')
+                ->mountUsing(function (Form $form): void {
+                    $prefill = session()->pull('pm_checksheet_prefill', []);
+
+                    $form->fill([
+                        'plant_area' => $prefill['plant_area'] ?? null,
+                        'nama_mesin' => $prefill['nama_mesin'] ?? null,
+                        'date' => $prefill['date'] ?? now('Asia/Jakarta')->toDateString(),
+                    ]);
+                })
                 ->slideOver()
                 ->closeModalByClickingAway(false)
                 ->closeModalByEscaping(false)

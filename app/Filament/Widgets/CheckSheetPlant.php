@@ -96,7 +96,9 @@ class CheckSheetPlant extends ChartWidget
 
     protected static ?string $heading = 'PM by Plant';
 
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
+
+    protected int|string|array $columnSpan = 1;
 
     protected static ?string $maxHeight = '300px';
 

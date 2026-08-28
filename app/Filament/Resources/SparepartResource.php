@@ -6,6 +6,7 @@ use App\Filament\Exports\SparepartExporter;
 use App\Filament\Resources\SparepartResource\Pages;
 use App\Filament\Resources\SparepartResource\RelationManagers;
 use App\Models\Sparepart;
+use App\Models\Mesin;
 use Carbon\Carbon;
 use Filament\Tables\Actions\ActionGroup;
 use Filament\Forms;
@@ -78,12 +79,34 @@ class SparepartResource extends Resource
                                         'undo',
                                     ])
                                     ->columnSpan('full'),
-                                Forms\Components\TextInput::make('Nama_Plant')
+                                // Forms\Components\TextInput::make('Nama_Plant')
+                                //     ->required()
+                                //     ->maxLength(6),
+                                // Forms\Components\TextInput::make('Nama_Mesin')
+                                //     ->required()
+                                //     ->maxLength(20),
+                                Forms\Components\Select::make('plant_area')
+                                    ->label('Nama Plant')
+                                    ->native(false)
                                     ->required()
-                                    ->maxLength(6),
-                                Forms\Components\TextInput::make('Nama_Mesin')
-                                    ->required()
-                                    ->maxLength(20),
+                                    ->options(function () {
+                                        return Mesin::query()
+                                            ->distinct()
+                                            ->orderBy('nama_plant')
+                                            ->pluck('nama_plant', 'nama_plant');
+                                    })
+                                    // ->options([
+                                    //     'PLANT A' => 'PLANT A',
+                                    //     'PLANT B' => 'PLANT B',
+                                    //     'PLANT C' => 'PLANT C',
+                                    //     'PLANT D' => 'PLANT D',
+                                    //     'PLANT E' => 'PLANT E',
+                                    //     'PLANT SS' => 'PLANT SS',
+                                    // ])
+                                    ->live()
+                                    ->afterStateUpdated(function (Set $set) {
+                                        $set('nama_mesin', null);
+                                    }),
                                 Forms\Components\TextInput::make('Nama_Bagian')
                                     ->required()
                                     ->maxLength(20),
@@ -482,9 +505,7 @@ class SparepartResource extends Resource
                 ]),
 
             ])
-            ->headerActions([
-                
-            ])
+            ->headerActions([])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     // Tables\Actions\DeleteBulkAction::make()

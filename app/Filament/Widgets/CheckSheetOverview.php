@@ -106,9 +106,9 @@ class CheckSheetOverview extends ChartWidget
 
     protected static ?string $heading = 'PM by Tipe Proses';
 
-    // protected int | string | array $columnSpan = 1;
+    protected int|string|array $columnSpan = 1;
 
-    protected static ?int $sort = 1;
+    protected static ?int $sort = 2;
 
     protected static ?string $maxHeight = '300px';
 

@@ -6,12 +6,16 @@ use App\Models\Checksheet;
 use App\Models\Schedule;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class PmRealvsPlan extends ChartWidget
 {
+
+    use HasWidgetShield;
+    
     protected static ?string $heading = 'Preventive Mesin';
     protected static ?string $description = 'Perbandingan Realisasi vs Rencana';
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 4;
     protected int|string|array $columnSpan = 'full';
     protected static ?string $maxHeight = '300px';
     protected static ?string $pollingInterval = '120s';

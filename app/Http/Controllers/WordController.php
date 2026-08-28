@@ -6,52 +6,131 @@ use Illuminate\Http\Request;
 use PhpOffice\PhpWord\TemplateProcessor;
 use App\Models\Checksheet;
 use Illuminate\Support\Facades\Response;
-use PhpOffice\PhpWord\IOFactory;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use RuntimeException;
+use Throwable;
+use ZipArchive;
 
 class WordController extends Controller
 {
-    public function __invoke(Request $request, $order)
+    private const MAX_BULK_RECORDS = 100;
+
+    public function __invoke($order)
     {
-        // Fetch the Checksheet record based on the provided order (id)
-        $checksheet = Checksheet::findOrFail($order); // Get Checksheet by id
+        $checksheet = Checksheet::findOrFail($order);
+        [$tempFilePath, $fileName] = $this->createTemporaryDocument($checksheet);
 
-        $templateFile = '';
+        return Response::download($tempFilePath, $fileName)
+            ->deleteFileAfterSend(true);
+    }
 
-        switch ($checksheet->tipe_proses) {
-            case 'Drawing':
-                $templateFile = 'CheckSheetDrawing.docx';
-                break;
-            case 'Stranding':
-                $templateFile = 'CheckSheetStranding.docx';
-                break;
-            case 'Cabling':
-                $templateFile = 'CheckSheetCabling.docx';
-                break;
-            case 'Extruder':
-                $templateFile = 'CheckSheetExtruder.docx';
-                break;
-            case 'Bunching':
-                $templateFile = 'CheckSheetBunching.docx';
-                break;
-            case 'Tapping':
-                $templateFile = 'CheckSheetTapping.docx';
-                break;
-            case 'Tinning':
-                $templateFile = 'CheckSheetTinning.docx';
-                break;
-            case 'Coloring':
-                $templateFile = 'CheckSheetColoring.docx';
-                break;
-            default:
-                // Set a default template or handle the case when 'tipe_proses' doesn't match any of the expected values
-                // $templateFile = 'CheckSheetDefault.docx';
-                break;
+    public function bulk(Request $request)
+    {
+        abort_unless(
+            class_exists(ZipArchive::class),
+            500,
+            'Ekstensi PHP ZIP belum aktif.'
+        );
+
+        $orderIds = collect($request->input('orders', []))
+            ->filter(fn($id): bool => filter_var($id, FILTER_VALIDATE_INT) !== false)
+            ->map(fn($id): int => (int) $id)
+            ->unique()
+            ->values();
+
+        abort_if($orderIds->isEmpty(), 422, 'Tidak ada PM yang dipilih.');
+        abort_if(
+            $orderIds->count() > self::MAX_BULK_RECORDS,
+            422,
+            'Maksimal ' . self::MAX_BULK_RECORDS . ' PM dalam satu unduhan.'
+        );
+
+        $recordsById = Checksheet::query()
+            ->whereIn('id', $orderIds)
+            ->get()
+            ->keyBy('id');
+
+        abort_if(
+            $recordsById->count() !== $orderIds->count(),
+            404,
+            'Satu atau beberapa PM tidak ditemukan.'
+        );
+
+        $zipPath = tempnam(sys_get_temp_dir(), 'checksheets_');
+
+        if ($zipPath === false) {
+            throw new RuntimeException('Gagal membuat file ZIP sementara.');
         }
 
-        // Initialize the template processor with the Word template file
-        $templateProcessor = new TemplateProcessor($templateFile);
+        $zip = new ZipArchive();
+        $openResult = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+
+        if ($openResult !== true) {
+            @unlink($zipPath);
+
+            throw new RuntimeException('Gagal membuka file ZIP sementara.');
+        }
+
+        $temporaryDocuments = [];
+        $zipClosed = false;
+
+        try {
+            foreach ($orderIds as $orderId) {
+                $checksheet = $recordsById->get($orderId);
+                [$documentPath, $fileName] = $this->createTemporaryDocument(
+                    $checksheet,
+                    includeId: true,
+                );
+
+                $temporaryDocuments[] = $documentPath;
+
+                if (! $zip->addFile($documentPath, $fileName)) {
+                    throw new RuntimeException("Gagal menambahkan {$fileName} ke ZIP.");
+                }
+            }
+
+            if (! $zip->close()) {
+                throw new RuntimeException('Gagal menyelesaikan file ZIP.');
+            }
+
+            $zipClosed = true;
+        } catch (Throwable $exception) {
+            if (! $zipClosed) {
+                $zip->close();
+            }
+
+            @unlink($zipPath);
+
+            throw $exception;
+        } finally {
+            foreach ($temporaryDocuments as $documentPath) {
+                @unlink($documentPath);
+            }
+        }
+
+        $zipFileName = 'Checksheets_' . now()->format('Y-m-d_H-i-s') . '.zip';
+
+        return Response::download($zipPath, $zipFileName)
+            ->deleteFileAfterSend(true);
+    }
+
+    private function makeTemplateProcessor(Checksheet $checksheet): TemplateProcessor
+    {
+        $templateFile = match ($checksheet->tipe_proses) {
+            'Drawing' => 'CheckSheetDrawing.docx',
+            'Stranding' => 'CheckSheetStranding.docx',
+            'Cabling' => 'CheckSheetCabling.docx',
+            'Extruder' => 'CheckSheetExtruder.docx',
+            'Bunching' => 'CheckSheetBunching.docx',
+            'Tapping' => 'CheckSheetTapping.docx',
+            'Tinning' => 'CheckSheetTinning.docx',
+            'Coloring' => 'CheckSheetColoring.docx',
+            default => throw new RuntimeException(
+                "Template untuk jenis mesin {$checksheet->tipe_proses} tidak tersedia."
+            ),
+        };
+
+        $templateProcessor = new TemplateProcessor(public_path($templateFile));
 
         // ELEKTRIK
         $templateProcessor->setValue('tipe_proses', $checksheet->tipe_proses);
@@ -213,19 +292,53 @@ class WordController extends Controller
         //     unlink($tempImageFile);
         // }
 
-        $templateProcessor->setImageValue('user', 'user.jpg');
-        $templateProcessor->setImageValue('sukino', 'Sukino.jpg');
-        $templateProcessor->setImageValue('suparta', 'Suparta.jpg');
-        $templateProcessor->setImageValue('sofyan', 'Sofyan.jpg');
+        $templateProcessor->setImageValue('user', public_path('user.jpg'));
+        $templateProcessor->setImageValue('sukino', public_path('Sukino.jpg'));
+        $templateProcessor->setImageValue('suparta', public_path('Suparta.jpg'));
+        $templateProcessor->setImageValue('sofyan', public_path('Sofyan.jpg'));
 
-        // Generate the file name dynamically based on Checksheet ID or any other attribute
-        $fileName = 'Checksheet_' . $checksheet->tipe_proses . ' ' . Carbon::parse($checksheet->date)->format('d-M-Y') . '.docx';
+        return $templateProcessor;
+    }
 
-        // Step 6: Save the processed file to a temporary location
-        $tempFilePath = storage_path('app/public/' . $fileName);
-        $templateProcessor->saveAs($tempFilePath);
+    private function createTemporaryDocument(
+        Checksheet $checksheet,
+        bool $includeId = false,
+    ): array {
+        $tempFilePath = tempnam(sys_get_temp_dir(), 'checksheet_');
 
-        // Return the generated Word file as a downloadable response
-        return Response::download($tempFilePath)->deleteFileAfterSend(true);
+        if ($tempFilePath === false) {
+            throw new RuntimeException('Gagal membuat file Word sementara.');
+        }
+
+        try {
+            $this->makeTemplateProcessor($checksheet)->saveAs($tempFilePath);
+        } catch (Throwable $exception) {
+            @unlink($tempFilePath);
+
+            throw $exception;
+        }
+
+        return [
+            $tempFilePath,
+            $this->documentFileName($checksheet, $includeId),
+        ];
+    }
+
+    private function documentFileName(Checksheet $checksheet, bool $includeId): string
+    {
+        $parts = [
+            'Checksheet',
+            $checksheet->tipe_proses,
+            Carbon::parse($checksheet->date)->format('d-M-Y'),
+        ];
+
+        if ($includeId) {
+            $parts[] = 'ID-' . $checksheet->getKey();
+        }
+
+        $fileName = implode('_', $parts);
+        $fileName = preg_replace('/[^A-Za-z0-9_-]+/', '_', $fileName) ?: 'Checksheet';
+
+        return $fileName . '.docx';
     }
 }

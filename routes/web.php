@@ -20,4 +20,14 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/app');
 
-Route::middleware('auth')->get('word/{order}', WordController::class)->name('word');
+Route::middleware([
+    'auth',
+    'can:publish_checksheet',
+])->group(function (): void {
+    // Route statis harus berada sebelum word/{order}.
+    Route::get('word/bulk', [WordController::class, 'bulk'])
+        ->name('word.bulk');
+
+    Route::get('word/{order}', WordController::class)
+        ->name('word');
+});

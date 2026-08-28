@@ -15,14 +15,40 @@ use Filament\Forms\Components\Fieldset;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Illuminate\Support\Facades\Hash;
+use App\Filament\Clusters\ShieldManagement;
+use Filament\Pages\SubNavigationPosition;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static ?string $navigationIcon = 'heroicon-m-user-group';
+    public static function shouldRegisterNavigation(): bool
+    {
+        return true;
+    }
 
-    protected static ?string $navigationGroup = 'Settings';
+    protected static ?string $navigationIcon = 'heroicon-o-user-group';
+
+    protected static ?string $cluster = ShieldManagement::class;
+
+    protected static SubNavigationPosition $subNavigationPosition =
+    SubNavigationPosition::Top;
+
+    public static function getNavigationBadge(): ?string
+    {
+        return (string) static::getModel()::count();
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'primary';
+    }
+
+    // protected static ?string $navigationIcon = 'heroicon-m-user-group';
+
+    // protected static ?string $navigationGroup = 'Settings';
+
+    protected static ?string $navigationGroup = null;
 
     public static function form(Form $form): Form
     {

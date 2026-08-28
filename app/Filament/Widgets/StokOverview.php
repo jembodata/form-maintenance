@@ -4,14 +4,17 @@ namespace App\Filament\Widgets;
 
 use App\Models\Sparepart;
 use Filament\Widgets\Widget;
+use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 
 class StokOverview extends Widget
 {
+
+    use HasWidgetShield;
+
     protected static string $view = 'filament.widgets.stok-overview';
 
+    protected static ?int $sort = 5;
     protected int|string|array $columnSpan = 'full';
-
-    protected static ?int $sort = 4;
 
     protected function getViewData(): array
     {

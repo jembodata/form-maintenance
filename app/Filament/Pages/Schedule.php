@@ -20,6 +20,7 @@ use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Support\Enums\MaxWidth;
 use Illuminate\Database\Eloquent\Builder;
+use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 
 /**
  * Filament Page: Schedule Preventive
@@ -31,6 +32,7 @@ use Illuminate\Database\Eloquent\Builder;
 class Schedule extends Page implements HasForms
 {
     use InteractsWithForms;
+    use HasPageShield;
 
     // -------------------------------------------------------------------------
     //  Static Page Config
