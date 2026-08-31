@@ -522,7 +522,7 @@ class ChecksheetResource extends Resource implements HasShieldPermissions
                     ->label('Nama Mesin')
                     ->searchable(),
             ])
-            ->defaultSort('created_at', 'desc')
+            ->defaultSort('date', 'desc')
             ->defaultPaginationPageOption(25)
             ->filters([
                 DateRangeFilter::make('date')

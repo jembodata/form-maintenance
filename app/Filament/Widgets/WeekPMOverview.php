@@ -5,16 +5,22 @@ namespace App\Filament\Widgets;
 use App\Filament\Pages\Schedule as SchedulePage;
 use App\Filament\Resources\ChecksheetResource;
 use App\Models\Checksheet;
+use App\Models\Mesin;
 use App\Models\Schedule;
 use BezhanSalleh\FilamentShield\Traits\HasWidgetShield;
 use Carbon\Carbon;
+use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
 use Filament\Widgets\Widget;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 
-class WeekPMOverview extends Widget
+class WeekPMOverview extends Widget implements HasForms
 {
     use HasWidgetShield;
+    use InteractsWithForms;
 
     protected static string $view = 'filament.widgets.week-pm-overview';
 
@@ -24,15 +30,119 @@ class WeekPMOverview extends Widget
 
     protected int|string|array $columnSpan = 'full';
 
+    public string $viewMode = 'week';
+
     public string $filter = 'pending';
 
     public ?string $plant = null;
 
+    public string $calendarDate = '';
+
+    public int $page = 1;
+
+    protected int $perPage = 5;
+
+    public function mount(): void
+    {
+        $this->calendarDate = now('Asia/Jakarta')->toDateString();
+
+        $this->form->fill([
+            'calendarDate' => $this->calendarDate,
+        ]);
+    }
+
+    public function form(Form $form): Form
+    {
+        return $form
+            ->schema([
+                DatePicker::make('calendarDate')
+                    ->hiddenLabel()
+                    ->native(false)
+                    ->displayFormat('d/m/Y')
+                    ->format('Y-m-d')
+                    ->locale('en')
+                    ->weekStartsOnMonday()
+                    ->closeOnDateSelection()
+                    ->live(),
+            ]);
+    }
+
+    public function setViewMode(string $viewMode): void
+    {
+        if (! in_array($viewMode, ['agenda', 'week', 'month'], true)) {
+            return;
+        }
+
+        $this->viewMode = $viewMode;
+        $this->page = 1;
+    }
+
     public function setFilter(string $filter): void
     {
-        if (in_array($filter, ['pending', 'overdue', 'completed'], true)) {
-            $this->filter = $filter;
+        if (! in_array($filter, ['all', 'pending', 'overdue', 'completed'], true)) {
+            return;
         }
+
+        $this->filter = $filter;
+        $this->page = 1;
+    }
+
+    public function updatedPlant(): void
+    {
+        $this->page = 1;
+    }
+
+    public function updatedCalendarDate(): void
+    {
+        $this->normaliseCalendarDate();
+        $this->page = 1;
+    }
+
+    public function previousPeriod(): void
+    {
+        $date = $this->selectedDate();
+
+        $this->calendarDate = ($this->viewMode === 'month'
+            ? $date->subMonthNoOverflow()
+            : $date->subWeek())
+            ->toDateString();
+
+        $this->page = 1;
+    }
+
+    public function nextPeriod(): void
+    {
+        $date = $this->selectedDate();
+
+        $this->calendarDate = ($this->viewMode === 'month'
+            ? $date->addMonthNoOverflow()
+            : $date->addWeek())
+            ->toDateString();
+
+        $this->page = 1;
+    }
+
+    public function currentPeriod(): void
+    {
+        $this->calendarDate = now('Asia/Jakarta')->toDateString();
+        $this->page = 1;
+    }
+
+    public function showDate(string $date): void
+    {
+        try {
+            $this->calendarDate = Carbon::parse($date, 'Asia/Jakarta')->toDateString();
+        } catch (\Throwable) {
+            return;
+        }
+
+        $this->viewMode = 'agenda';
+        $this->page = 1;
+    }
+
+    public function goToPage(int $page): void
+    {
+        $this->page = max(1, $page);
     }
 
     public function openChecklist(int $scheduleId): void
@@ -57,137 +167,274 @@ class WeekPMOverview extends Widget
     protected function getViewData(): array
     {
         $today = now('Asia/Jakarta')->startOfDay();
-        $weekStart = $today->copy()->startOfWeek(Carbon::MONDAY);
-        $weekEnd = $today->copy()->endOfWeek(Carbon::SUNDAY);
+        $selectedDate = $this->selectedDate();
+        [$rangeStart, $rangeEnd] = $this->dataRange($selectedDate);
+        [$calendarStart, $calendarEnd] = $this->calendarRange($selectedDate);
 
         $schedules = Schedule::query()
             ->with('mesin:id,nama_plant,nama_mesin')
             ->whereBetween('rencana_cek', [
-                $weekStart->toDateString(),
-                $weekEnd->toDateString(),
+                $rangeStart->toDateString(),
+                $rangeEnd->toDateString(),
             ])
             ->orderBy('rencana_cek')
             ->get();
 
         $checksheets = Checksheet::query()
             ->whereBetween('date', [
-                $weekStart->toDateString(),
-                $weekEnd->toDateString(),
+                $rangeStart->toDateString(),
+                $rangeEnd->toDateString(),
             ])
-            ->get(['id', 'plant_area', 'nama_mesin', 'date'])
+            ->get(['id', 'plant_area', 'nama_mesin', 'date', 'time_start', 'time_end'])
             ->keyBy(fn (Checksheet $checksheet): string => $this->checksheetKey(
                 $checksheet->plant_area,
                 $checksheet->nama_mesin,
                 Carbon::parse($checksheet->date)->toDateString(),
             ));
 
-        $jobs = $schedules->map(function (Schedule $schedule) use ($checksheets, $today): array {
-            $plannedDate = Carbon::parse($schedule->rencana_cek, 'Asia/Jakarta')->startOfDay();
-            $plant = $schedule->mesin?->nama_plant ?: $schedule->nama_plant;
-            $machine = $schedule->mesin?->nama_mesin;
-            $key = $this->checksheetKey($plant, $machine, $plannedDate->toDateString());
-            $checksheet = $checksheets->get($key);
+        $jobs = $schedules->map(
+            fn (Schedule $schedule): array => $this->mapSchedule($schedule, $checksheets, $today),
+        );
 
-            if ($checksheet) {
-                $status = 'completed';
-                $statusLabel = 'Selesai';
-                $statusColor = 'success';
-                $statusOrder = 4;
-            } elseif ($plannedDate->lt($today)) {
-                $status = 'overdue';
-                $statusLabel = 'Terlambat';
-                $statusColor = 'danger';
-                $statusOrder = 1;
-            } elseif ($plannedDate->isSameDay($today)) {
-                $status = 'today';
-                $statusLabel = 'Hari ini';
-                $statusColor = 'warning';
-                $statusOrder = 2;
-            } else {
-                $status = 'scheduled';
-                $statusLabel = 'Terjadwal';
-                $statusColor = 'gray';
-                $statusOrder = 3;
-            }
-
-            $actionUrl = $checksheet
-                ? ChecksheetResource::getUrl('index', [
-                    'tableAction' => 'view',
-                    'tableActionRecord' => $checksheet->getKey(),
-                ])
-                : null;
-
-            return [
-                'id' => $schedule->getKey(),
-                'plant' => $plant ?: '-',
-                'machine' => $machine ?: '-',
-                'planned_date' => $plannedDate,
-                'note' => $schedule->keterangan_note,
-                'status' => $status,
-                'status_label' => $statusLabel,
-                'status_color' => $statusColor,
-                'status_order' => $statusOrder,
-                'action_url' => $actionUrl,
-                'action_label' => $checksheet ? 'Lihat hasil' : 'Buka checklist',
-                'can_open' => $checksheet
-                    ? auth()->user()?->can('view_checksheet')
-                    : auth()->user()?->can('create_checksheet'),
-            ];
-        });
-
-        $plants = $jobs
-            ->pluck('plant')
-            ->filter(fn (string $plant): bool => $plant !== '-')
+        $plants = Mesin::query()
+            ->whereNotNull('nama_plant')
+            ->where('nama_plant', '!=', '')
+            ->distinct()
+            ->orderBy('nama_plant')
+            ->pluck('nama_plant')
+            ->merge($jobs->pluck('plant'))
+            ->filter(fn (?string $plant): bool => filled($plant) && $plant !== '-')
             ->unique()
             ->sort()
             ->values();
 
         $plantJobs = $jobs
-            ->when($this->plant, fn (Collection $items): Collection => $items->where('plant', $this->plant))
+            ->when(
+                filled($this->plant),
+                fn (Collection $items): Collection => $items->where('plant', $this->plant),
+            )
             ->values();
 
         $counts = [
+            'all' => $plantJobs->count(),
             'pending' => $plantJobs->whereIn('status', ['overdue', 'today', 'scheduled'])->count(),
             'overdue' => $plantJobs->where('status', 'overdue')->count(),
             'completed' => $plantJobs->where('status', 'completed')->count(),
         ];
 
-        $filteredJobs = $plantJobs
-            ->when(
-                $this->filter === 'pending',
-                fn (Collection $items): Collection => $items->whereIn('status', ['overdue', 'today', 'scheduled']),
-            )
-            ->when(
-                $this->filter === 'overdue',
-                fn (Collection $items): Collection => $items->where('status', 'overdue'),
-            )
-            ->when(
-                $this->filter === 'completed',
-                fn (Collection $items): Collection => $items->where('status', 'completed'),
-            )
+        $filteredJobs = $this->filterJobs($plantJobs)
             ->sortBy(fn (array $job): string => sprintf(
-                '%d-%s-%s',
-                $job['status_order'],
+                '%s-%d-%s',
                 $job['planned_date']->format('Y-m-d'),
+                $job['status_order'],
                 Str::lower($job['machine']),
             ))
             ->values();
 
+        $jobsByDate = $filteredJobs->groupBy(
+            fn (array $job): string => $job['planned_date']->toDateString(),
+        );
+
+        $appointmentLimit = $this->viewMode === 'month' ? 2 : 4;
+        $calendarDays = $this->buildCalendarDays(
+            $calendarStart,
+            $calendarEnd,
+            $selectedDate,
+            $jobsByDate,
+            $today,
+            $appointmentLimit,
+        );
+
         $totalJobs = $filteredJobs->count();
-        $visibleJobs = $filteredJobs
-            ->take(8)
+        $totalPages = max(1, (int) ceil($totalJobs / $this->perPage));
+        $currentPage = min(max($this->page, 1), $totalPages);
+        $agendaJobs = $filteredJobs
+            ->forPage($currentPage, $this->perPage)
             ->values();
 
         return [
-            'jobs' => $visibleJobs,
+            'viewMode' => $this->viewMode,
+            'agendaJobs' => $agendaJobs,
+            'calendarDays' => $calendarDays,
             'totalJobs' => $totalJobs,
+            'currentPage' => $currentPage,
+            'totalPages' => $totalPages,
+            'fromJob' => $totalJobs === 0 ? 0 : (($currentPage - 1) * $this->perPage) + 1,
+            'toJob' => min($currentPage * $this->perPage, $totalJobs),
             'counts' => $counts,
             'plants' => $plants,
-            'weekStart' => $weekStart,
-            'weekEnd' => $weekEnd,
+            'rangeStart' => $rangeStart,
+            'rangeEnd' => $rangeEnd,
+            'periodLabel' => $this->periodLabel($selectedDate, $rangeStart, $rangeEnd),
+            'isCurrentPeriod' => $this->isCurrentPeriod($selectedDate, $rangeStart, $rangeEnd, $today),
             'scheduleUrl' => SchedulePage::getUrl(),
             'canViewSchedule' => (bool) auth()->user()?->can('page_Schedule'),
         ];
+    }
+
+    private function mapSchedule(Schedule $schedule, Collection $checksheets, Carbon $today): array
+    {
+        $plannedDate = Carbon::parse($schedule->rencana_cek, 'Asia/Jakarta')->startOfDay();
+        $plant = $schedule->mesin?->nama_plant ?: $schedule->nama_plant;
+        $machine = $schedule->mesin?->nama_mesin;
+        $checksheet = $checksheets->get(
+            $this->checksheetKey($plant, $machine, $plannedDate->toDateString()),
+        );
+
+        if ($checksheet) {
+            [$status, $statusLabel, $statusColor, $statusOrder] = ['completed', 'Selesai', 'success', 4];
+        } elseif ($plannedDate->lt($today)) {
+            [$status, $statusLabel, $statusColor, $statusOrder] = ['overdue', 'Terlambat', 'danger', 1];
+        } elseif ($plannedDate->isSameDay($today)) {
+            [$status, $statusLabel, $statusColor, $statusOrder] = ['today', 'Hari ini', 'warning', 2];
+        } else {
+            [$status, $statusLabel, $statusColor, $statusOrder] = ['scheduled', 'Terjadwal', 'gray', 3];
+        }
+
+        $actualTime = null;
+        if ($checksheet?->time_start && $checksheet?->time_end) {
+            $actualTime = sprintf(
+                '%s–%s',
+                Carbon::parse($checksheet->time_start)->format('H:i'),
+                Carbon::parse($checksheet->time_end)->format('H:i'),
+            );
+        }
+
+        return [
+            'id' => $schedule->getKey(),
+            'plant' => $plant ?: '-',
+            'machine' => $machine ?: '-',
+            'planned_date' => $plannedDate,
+            'note' => $schedule->keterangan_note,
+            'status' => $status,
+            'status_label' => $statusLabel,
+            'status_color' => $statusColor,
+            'status_order' => $statusOrder,
+            'actual_time' => $actualTime,
+            'action_url' => $checksheet
+                ? ChecksheetResource::getUrl('index', [
+                    'tableAction' => 'view',
+                    'tableActionRecord' => $checksheet->getKey(),
+                ])
+                : null,
+            'can_open' => $checksheet
+                ? auth()->user()?->can('view_checksheet')
+                : auth()->user()?->can('create_checksheet'),
+        ];
+    }
+
+    private function filterJobs(Collection $jobs): Collection
+    {
+        return match ($this->filter) {
+            'pending' => $jobs->whereIn('status', ['overdue', 'today', 'scheduled']),
+            'overdue' => $jobs->where('status', 'overdue'),
+            'completed' => $jobs->where('status', 'completed'),
+            default => $jobs,
+        };
+    }
+
+    private function buildCalendarDays(
+        Carbon $rangeStart,
+        Carbon $rangeEnd,
+        Carbon $selectedDate,
+        Collection $jobsByDate,
+        Carbon $today,
+        int $appointmentLimit,
+    ): Collection {
+        $days = collect();
+        $cursor = $rangeStart->copy();
+
+        while ($cursor->lte($rangeEnd)) {
+            $date = $cursor->copy();
+            $dateJobs = $jobsByDate->get($date->toDateString(), collect())->values();
+
+            $days->push([
+                'date' => $date,
+                'jobs' => $dateJobs->take($appointmentLimit),
+                'total' => $dateJobs->count(),
+                'more' => max(0, $dateJobs->count() - $appointmentLimit),
+                'is_today' => $date->isSameDay($today),
+                'is_selected' => $date->isSameDay($selectedDate),
+                'is_current_month' => $date->isSameMonth($selectedDate),
+            ]);
+
+            $cursor->addDay();
+        }
+
+        return $days;
+    }
+
+    private function dataRange(Carbon $selectedDate): array
+    {
+        if ($this->viewMode === 'month') {
+            return [
+                $selectedDate->copy()->startOfMonth(),
+                $selectedDate->copy()->endOfMonth(),
+            ];
+        }
+
+        return [
+            $selectedDate->copy()->startOfWeek(Carbon::MONDAY),
+            $selectedDate->copy()->endOfWeek(Carbon::SUNDAY),
+        ];
+    }
+
+    private function calendarRange(Carbon $selectedDate): array
+    {
+        if ($this->viewMode === 'month') {
+            return [
+                $selectedDate->copy()->startOfMonth()->startOfWeek(Carbon::MONDAY),
+                $selectedDate->copy()->endOfMonth()->endOfWeek(Carbon::SUNDAY),
+            ];
+        }
+
+        return $this->dataRange($selectedDate);
+    }
+
+    private function periodLabel(Carbon $selectedDate, Carbon $rangeStart, Carbon $rangeEnd): string
+    {
+        if ($this->viewMode === 'month') {
+            return $selectedDate->format('F Y');
+        }
+
+        if ($rangeStart->isSameMonth($rangeEnd)) {
+            return sprintf(
+                '%s–%s',
+                $rangeStart->format('d'),
+                $rangeEnd->format('d F Y'),
+            );
+        }
+
+        return sprintf(
+            '%s–%s',
+            $rangeStart->format('d M'),
+            $rangeEnd->format('d M Y'),
+        );
+    }
+
+    private function isCurrentPeriod(
+        Carbon $selectedDate,
+        Carbon $rangeStart,
+        Carbon $rangeEnd,
+        Carbon $today,
+    ): bool {
+        return $this->viewMode === 'month'
+            ? $selectedDate->isSameMonth($today)
+            : $today->between($rangeStart, $rangeEnd, true);
+    }
+
+    private function selectedDate(): Carbon
+    {
+        try {
+            return Carbon::parse($this->calendarDate ?: 'now', 'Asia/Jakarta')->startOfDay();
+        } catch (\Throwable) {
+            return now('Asia/Jakarta')->startOfDay();
+        }
+    }
+
+    private function normaliseCalendarDate(): void
+    {
+        $this->calendarDate = $this->selectedDate()->toDateString();
     }
 
     private function checksheetKey(?string $plant, ?string $machine, string $date): string
